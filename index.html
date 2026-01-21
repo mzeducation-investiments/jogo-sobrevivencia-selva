@@ -16,38 +16,38 @@
         const { useState, useEffect } = React;
         
         import React, { useState, useEffect, useCallback } from 'react';
-import { Heart, X } from 'lucide-react';
+        import { Heart, X } from 'lucide-react';
 
-const JungleSurvivalGame = () => {
-  const [gameState, setGameState] = useState('menu'); // menu, playing, won, lost
-  const [player, setPlayer] = useState({ x: 200, y: 300 });
-  const [hearts, setHearts] = useState(0);
-  const [lives, setLives] = useState(3);
-  const [fruits, setFruits] = useState([]);
-  const [animals, setAnimals] = useState([]);
-  const [lions, setLions] = useState([]);
-  const [keys, setKeys] = useState({});
-  const [invulnerable, setInvulnerable] = useState(false);
+        const JungleSurvivalGame = () => {
+        const [gameState, setGameState] = useState('menu'); // menu, playing, won, lost
+        const [player, setPlayer] = useState({ x: 200, y: 300 });
+        const [hearts, setHearts] = useState(0);
+        const [lives, setLives] = useState(3);
+        const [fruits, setFruits] = useState([]);
+        const [animals, setAnimals] = useState([]);
+        const [lions, setLions] = useState([]);
+        const [keys, setKeys] = useState({});
+        const [invulnerable, setInvulnerable] = useState(false);
 
-  const CANVAS_WIDTH = 800;
-  const CANVAS_HEIGHT = 600;
-  const PLAYER_SIZE = 30;
-  const FRUIT_SIZE = 20;
-  const ANIMAL_SIZE = 25;
-  const LION_SIZE = 35;
-  const PLAYER_SPEED = 5;
+        const CANVAS_WIDTH = 800;
+        const CANVAS_HEIGHT = 600;
+        const PLAYER_SIZE = 30;
+        const FRUIT_SIZE = 20;
+        const ANIMAL_SIZE = 25;
+        const LION_SIZE = 35;
+        const PLAYER_SPEED = 5;
 
-  // Inicializar jogo
-  const startGame = () => {
-    setGameState('playing');
-    setPlayer({ x: 200, y: 300 });
-    setHearts(0);
-    setLives(3);
-    setFruits([]);
-    setAnimals([]);
-    setLions([]);
-    setInvulnerable(false);
-  };
+        // Inicializar jogo
+             const startGame = () => {
+             setGameState('playing');
+             setPlayer({ x: 200, y: 300 });
+             setHearts(0);
+             setLives(3);
+             setFruits([]);
+             setAnimals([]);
+             setLions([]);
+             setInvulnerable(false);
+             };
 
   // Spawnar frutas
   useEffect(() => {
