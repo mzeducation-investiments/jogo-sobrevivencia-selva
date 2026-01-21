@@ -15,8 +15,373 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
         
-        // Cole aqui todo o código do componente JungleSurvivalGame
-        // (o código completo do jogo que criei anteriormente)
+        import React, { useState, useEffect, useCallback } from 'react';
+import { Heart, X } from 'lucide-react';
+
+const JungleSurvivalGame = () => {
+  const [gameState, setGameState] = useState('menu'); // menu, playing, won, lost
+  const [player, setPlayer] = useState({ x: 200, y: 300 });
+  const [hearts, setHearts] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [fruits, setFruits] = useState([]);
+  const [animals, setAnimals] = useState([]);
+  const [lions, setLions] = useState([]);
+  const [keys, setKeys] = useState({});
+  const [invulnerable, setInvulnerable] = useState(false);
+
+  const CANVAS_WIDTH = 800;
+  const CANVAS_HEIGHT = 600;
+  const PLAYER_SIZE = 30;
+  const FRUIT_SIZE = 20;
+  const ANIMAL_SIZE = 25;
+  const LION_SIZE = 35;
+  const PLAYER_SPEED = 5;
+
+  // Inicializar jogo
+  const startGame = () => {
+    setGameState('playing');
+    setPlayer({ x: 200, y: 300 });
+    setHearts(0);
+    setLives(3);
+    setFruits([]);
+    setAnimals([]);
+    setLions([]);
+    setInvulnerable(false);
+  };
+
+  // Spawnar frutas
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+    
+    const interval = setInterval(() => {
+      setFruits(prev => [...prev, {
+        id: Math.random(),
+        x: Math.random() * (CANVAS_WIDTH - FRUIT_SIZE),
+        y: Math.random() * (CANVAS_HEIGHT - FRUIT_SIZE),
+        type: Math.random() > 0.5 ? 'apple' : 'banana'
+      }]);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [gameState]);
+
+  // Spawnar animais para capturar
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+    
+    const interval = setInterval(() => {
+      setAnimals(prev => [...prev, {
+        id: Math.random(),
+        x: Math.random() * (CANVAS_WIDTH - ANIMAL_SIZE),
+        y: Math.random() * (CANVAS_HEIGHT - ANIMAL_SIZE),
+        vx: (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.5) * 2
+      }]);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [gameState]);
+
+  // Spawnar leões (inimigos)
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+    
+    const interval = setInterval(() => {
+      setLions(prev => [...prev, {
+        id: Math.random(),
+        x: Math.random() * (CANVAS_WIDTH - LION_SIZE),
+        y: Math.random() * (CANVAS_HEIGHT - LION_SIZE)
+      }]);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [gameState]);
+
+  // Controles do teclado
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      setKeys(prev => ({ ...prev, [e.key]: true }));
+    };
+
+    const handleKeyUp = (e) => {
+      setKeys(prev => ({ ...prev, [e.key]: false }));
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Movimento do jogador
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+
+    const interval = setInterval(() => {
+      setPlayer(prev => {
+        let newX = prev.x;
+        let newY = prev.y;
+
+        if (keys['ArrowLeft'] || keys['a']) newX -= PLAYER_SPEED;
+        if (keys['ArrowRight'] || keys['d']) newX += PLAYER_SPEED;
+        if (keys['ArrowUp'] || keys['w']) newY -= PLAYER_SPEED;
+        if (keys['ArrowDown'] || keys['s']) newY += PLAYER_SPEED;
+
+        newX = Math.max(0, Math.min(CANVAS_WIDTH - PLAYER_SIZE, newX));
+        newY = Math.max(0, Math.min(CANVAS_HEIGHT - PLAYER_SIZE, newY));
+
+        return { x: newX, y: newY };
+      });
+    }, 1000 / 60);
+
+    return () => clearInterval(interval);
+  }, [keys, gameState]);
+
+  // Movimento dos animais
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+
+    const interval = setInterval(() => {
+      setAnimals(prev => prev.map(animal => {
+        let newX = animal.x + animal.vx;
+        let newY = animal.y + animal.vy;
+
+        if (newX <= 0 || newX >= CANVAS_WIDTH - ANIMAL_SIZE) animal.vx *= -1;
+        if (newY <= 0 || newY >= CANVAS_HEIGHT - ANIMAL_SIZE) animal.vy *= -1;
+
+        newX = Math.max(0, Math.min(CANVAS_WIDTH - ANIMAL_SIZE, newX));
+        newY = Math.max(0, Math.min(CANVAS_HEIGHT - ANIMAL_SIZE, newY));
+
+        return { ...animal, x: newX, y: newY };
+      }));
+    }, 1000 / 60);
+
+    return () => clearInterval(interval);
+  }, [gameState]);
+
+  // Movimento dos leões (perseguem o jogador)
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+
+    const interval = setInterval(() => {
+      setLions(prev => prev.map(lion => {
+        const dx = player.x - lion.x;
+        const dy = player.y - lion.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist > 0) {
+          const speed = 2;
+          return {
+            ...lion,
+            x: lion.x + (dx / dist) * speed,
+            y: lion.y + (dy / dist) * speed
+          };
+        }
+        return lion;
+      }));
+    }, 1000 / 60);
+
+    return () => clearInterval(interval);
+  }, [player, gameState]);
+
+  // Detecção de colisões
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+
+    // Colisão com frutas
+    setFruits(prev => prev.filter(fruit => {
+      const dx = player.x - fruit.x;
+      const dy = player.y - fruit.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < PLAYER_SIZE / 2 + FRUIT_SIZE / 2) {
+        setHearts(h => h + 1);
+        return false;
+      }
+      return true;
+    }));
+
+    // Colisão com animais para capturar
+    setAnimals(prev => prev.filter(animal => {
+      const dx = player.x - animal.x;
+      const dy = player.y - animal.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < PLAYER_SIZE / 2 + ANIMAL_SIZE / 2) {
+        setHearts(h => h + 1);
+        return false;
+      }
+      return true;
+    }));
+
+    // Colisão com leões
+    if (!invulnerable) {
+      setLions(prev => prev.filter(lion => {
+        const dx = player.x - lion.x;
+        const dy = player.y - lion.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < PLAYER_SIZE / 2 + LION_SIZE / 2) {
+          setLives(l => l - 1);
+          setInvulnerable(true);
+          setTimeout(() => setInvulnerable(false), 2000);
+          return false;
+        }
+        return true;
+      }));
+    }
+  }, [player, gameState, invulnerable]);
+
+  // Verificar condições de vitória/derrota
+  useEffect(() => {
+    if (hearts >= 100) {
+      setGameState('won');
+    }
+    if (lives <= 0) {
+      setGameState('lost');
+    }
+  }, [hearts, lives]);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-green-800 to-green-600 p-4">
+      {gameState === 'menu' && (
+        <div className="text-center bg-green-900 p-8 rounded-lg shadow-2xl">
+          <h1 className="text-4xl font-bold text-yellow-300 mb-4">🌴 Sobrevivência na Selva 🌴</h1>
+          <p className="text-white mb-2">Use as setas ou WASD para mover</p>
+          <p className="text-white mb-2">🍎 Colete frutas e 🐰 capture animais para ganhar corações</p>
+          <p className="text-white mb-2">🦁 Evite os leões! Você tem 3 vidas</p>
+          <p className="text-white mb-6">Meta: 100 corações para vencer!</p>
+          <button 
+            onClick={startGame}
+            className="bg-yellow-500 hover:bg-yellow-600 text-green-900 font-bold py-3 px-8 rounded-lg text-xl"
+          >
+            Iniciar Jogo
+          </button>
+        </div>
+      )}
+
+      {gameState === 'playing' && (
+        <div className="relative">
+          <div className="bg-yellow-100 p-4 rounded-t-lg flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Heart className="text-red-500 fill-red-500" />
+              <span className="text-2xl font-bold">{hearts}/100</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-bold">Vidas:</span>
+              {[...Array(lives)].map((_, i) => (
+                <Heart key={i} className="text-red-500 fill-red-500" size={24} />
+              ))}
+            </div>
+          </div>
+          
+          <div 
+            className="relative bg-green-700 border-4 border-green-900"
+            style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
+          >
+            {/* Jogador */}
+            <div
+              className={`absolute transition-opacity ${invulnerable ? 'opacity-50 animate-pulse' : ''}`}
+              style={{
+                left: player.x,
+                top: player.y,
+                width: PLAYER_SIZE,
+                height: PLAYER_SIZE,
+                fontSize: '30px',
+                transform: 'translate(-50%, -50%)'
+              }}
+            >
+              🧒
+            </div>
+
+            {/* Frutas */}
+            {fruits.map(fruit => (
+              <div
+                key={fruit.id}
+                className="absolute"
+                style={{
+                  left: fruit.x,
+                  top: fruit.y,
+                  width: FRUIT_SIZE,
+                  height: FRUIT_SIZE,
+                  fontSize: '20px'
+                }}
+              >
+                {fruit.type === 'apple' ? '🍎' : '🍌'}
+              </div>
+            ))}
+
+            {/* Animais para capturar */}
+            {animals.map(animal => (
+              <div
+                key={animal.id}
+                className="absolute"
+                style={{
+                  left: animal.x,
+                  top: animal.y,
+                  width: ANIMAL_SIZE,
+                  height: ANIMAL_SIZE,
+                  fontSize: '25px'
+                }}
+              >
+                🐰
+              </div>
+            ))}
+
+            {/* Leões */}
+            {lions.map(lion => (
+              <div
+                key={lion.id}
+                className="absolute"
+                style={{
+                  left: lion.x,
+                  top: lion.y,
+                  width: LION_SIZE,
+                  height: LION_SIZE,
+                  fontSize: '35px'
+                }}
+              >
+                🦁
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {gameState === 'won' && (
+        <div className="text-center bg-yellow-400 p-8 rounded-lg shadow-2xl">
+          <h1 className="text-5xl font-bold text-green-900 mb-4">🎉 VITÓRIA! 🎉</h1>
+          <p className="text-2xl text-green-800 mb-6">Você sobreviveu e alcançou 100 corações!</p>
+          <button 
+            onClick={startGame}
+            className="bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-8 rounded-lg text-xl"
+          >
+            Jogar Novamente
+          </button>
+        </div>
+      )}
+
+      {gameState === 'lost' && (
+        <div className="text-center bg-red-600 p-8 rounded-lg shadow-2xl">
+          <h1 className="text-5xl font-bold text-white mb-4">💔 GAME OVER 💔</h1>
+          <p className="text-2xl text-white mb-2">Você foi derrotado pelos leões!</p>
+          <p className="text-xl text-white mb-6">Corações coletados: {hearts}/100</p>
+          <button 
+            onClick={startGame}
+            className="bg-white hover:bg-gray-200 text-red-600 font-bold py-3 px-8 rounded-lg text-xl"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default JungleSurvivalGame;
         
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<JungleSurvivalGame />);
